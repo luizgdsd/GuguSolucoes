@@ -89,8 +89,12 @@ jobs:
           $setup = "dist\GuguSolucoes-Setup-$version.exe"
           $manifest = "dist\update.json"
 
+          $ErrorActionPreference = "Continue"
           gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
+          $releaseExists = $LASTEXITCODE -eq 0
+          $ErrorActionPreference = "Stop"
+
+          if ($releaseExists) {
             gh release upload $tag $setup $manifest --clobber
             gh release edit $tag --title "GuguSolucoes $version" --notes "Atualizacao $version do GuguSolucoes." --latest
           } else {
