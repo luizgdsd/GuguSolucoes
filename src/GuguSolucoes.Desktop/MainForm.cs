@@ -393,10 +393,9 @@ public sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 7
+            RowCount = 6
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -422,9 +421,7 @@ public sealed class MainForm : Form
         _navLimpaCacheButton.Click += (_, _) => SwitchModule(ModuleView.LimpaCache);
         layout.Controls.Add(_navLimpaCacheButton, 0, 2);
 
-        _navJuntarPdfButton = CreateNavButton("Juntar PDF (desativado)", AccentOrange);
-        _navJuntarPdfButton.Enabled = false;
-        layout.Controls.Add(_navJuntarPdfButton, 0, 3);
+        _navJuntarPdfButton = new Button { Visible = false };
 
         layout.Controls.Add(new Label
         {
@@ -433,7 +430,7 @@ public sealed class MainForm : Form
             ForeColor = TextSecondary,
             Margin = new Padding(0, 18, 0, 8),
             Tag = "secondary"
-        }, 0, 4);
+        }, 0, 3);
 
         var shortcuts = new TableLayoutPanel
         {
@@ -456,7 +453,7 @@ public sealed class MainForm : Form
         openCleanupLogsFromSidebar.Click += (_, _) => OpenFolder(CleanupPaths.LogDirectory, _cleanupLog, "logs do LimpaCache");
         shortcuts.Controls.Add(openCleanupLogsFromSidebar, 0, 1);
 
-        layout.Controls.Add(shortcuts, 0, 5);
+        layout.Controls.Add(shortcuts, 0, 4);
 
         layout.Controls.Add(new Label
         {
@@ -465,7 +462,7 @@ public sealed class MainForm : Form
             ForeColor = TextSecondary,
             Margin = new Padding(0, 10, 0, 0),
             Tag = "secondary"
-        }, 0, 6);
+        }, 0, 5);
 
         sidebar.Controls.Add(layout);
         return sidebar;
