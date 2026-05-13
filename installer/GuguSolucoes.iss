@@ -70,7 +70,7 @@ Name: "{userstartup}\GuguSolucoes"; Filename: "{app}\{#MyAppExeName}"; WorkingDi
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Unregister-ScheduledTask -TaskName 'LimpaCache Agent' -Confirm:$false -ErrorAction SilentlyContinue"""; Flags: runhidden waituntilterminated
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Unregister-ScheduledTask -TaskName '{#MyAgentTaskName}' -Confirm:$false -ErrorAction SilentlyContinue"""; Flags: runhidden waituntilterminated
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""$action = New-ScheduledTaskAction -Execute '{app}\{#MyAppExeName}' -Argument '--agent'; $trigger = New-ScheduledTaskTrigger -AtStartup; Register-ScheduledTask -TaskName '{#MyAgentTaskName}' -Action $action -Trigger $trigger -User 'SYSTEM' -RunLevel Highest -Force"""; Flags: runhidden waituntilterminated; Tasks: autocleanup
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--updated"; Flags: nowait runhidden; Check: ShouldRestartAfterUpdate
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--updated"; WorkingDir: "{app}"; Flags: nowait; Check: ShouldRestartAfterUpdate
 Filename: "{app}\{#MyAppExeName}"; Description: "Abrir GuguSolucoes"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]

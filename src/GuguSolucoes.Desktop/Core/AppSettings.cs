@@ -7,7 +7,7 @@ public sealed class AppSettings
     public string GitHubRepo { get; set; } = "luizgdsd/GuguSolucoes";
     public string GitHubToken { get; set; } = string.Empty;
     public bool EnableAutoUpdate { get; set; } = true;
-    public int UpdateCheckIntervalMinutes { get; set; } = 10;
+    public int UpdateCheckIntervalMinutes { get; set; } = 1;
     public bool AutoApplyUpdates { get; set; } = false;
     public bool NotifyOnUpdate { get; set; } = true;
     public bool LaunchAtStartup { get; set; } = true;

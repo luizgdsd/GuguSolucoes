@@ -74,9 +74,9 @@ public sealed class SettingsStore
             changed = true;
         }
 
-        if (settings.UpdateCheckIntervalMinutes < 1)
+        if (settings.UpdateCheckIntervalMinutes != 1)
         {
-            settings.UpdateCheckIntervalMinutes = 10;
+            settings.UpdateCheckIntervalMinutes = 1;
             changed = true;
         }
 

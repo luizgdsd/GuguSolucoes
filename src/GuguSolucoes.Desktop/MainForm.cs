@@ -56,6 +56,7 @@ public sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _updateCheckTimer;
     private readonly Icon _appIcon;
     private readonly bool _startInTray;
+    private readonly bool _launchedAfterUpdate;
 
     private readonly AppSettings _settings;
 
@@ -137,9 +138,10 @@ public sealed class MainForm : Form
     private Color _panelBorderColor = AppBorder;
     private Color _headerBorderColor = Color.FromArgb(58, 74, 98);
 
-    public MainForm(bool startInTray = false)
+    public MainForm(bool startInTray = false, bool launchedAfterUpdate = false)
     {
         _startInTray = startInTray;
+        _launchedAfterUpdate = launchedAfterUpdate;
 
         _appPaths = new AppPaths();
         _logger = new AppLogger(_appPaths);
@@ -1532,6 +1534,10 @@ public sealed class MainForm : Form
         {
             BeginInvoke(new Action(() => HideToTray(showBalloon: false)));
         }
+        else if (_launchedAfterUpdate)
+        {
+            BeginInvoke(new Action(ShowUpdatedAppReady));
+        }
 
         await CheckForUpdatesAsync(userInitiated: false);
     }
@@ -1727,6 +1733,18 @@ public sealed class MainForm : Form
         ShowInTaskbar = true;
         WindowState = FormWindowState.Normal;
         Activate();
+    }
+
+    private void ShowUpdatedAppReady()
+    {
+        ShowFromTray();
+        BringToFront();
+        FlashTaskbar();
+        _notifyIcon.ShowBalloonTip(
+            4000,
+            "Gugu Soluções atualizado",
+            $"Versão v{UpdateService.FormatVersion(_updateService.CurrentVersion)} pronta para uso.",
+            ToolTipIcon.Info);
     }
 
     private void ExitApplication()

@@ -27,8 +27,10 @@ internal static class Program
         try
         {
             ApplicationConfiguration.Initialize();
-            var startInTray = HasArg(args, "--tray") || HasArg(args, "--minimized") || HasArg(args, "--background");
-            Application.Run(new MainForm(startInTray));
+            var launchedAfterUpdate = HasArg(args, "--updated");
+            var startInTray = !launchedAfterUpdate &&
+                              (HasArg(args, "--tray") || HasArg(args, "--minimized") || HasArg(args, "--background"));
+            Application.Run(new MainForm(startInTray, launchedAfterUpdate));
             return 0;
         }
         finally
