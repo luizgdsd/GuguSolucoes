@@ -420,8 +420,8 @@ public sealed class MainForm : Form
         _navLimpaCacheButton.Click += (_, _) => SwitchModule(ModuleView.LimpaCache);
         layout.Controls.Add(_navLimpaCacheButton, 0, 2);
 
-        _navJuntarPdfButton = CreateNavButton("Juntar PDF", AccentOrange);
-        _navJuntarPdfButton.Click += (_, _) => SwitchModule(ModuleView.JuntarPdf);
+        _navJuntarPdfButton = CreateNavButton("Juntar PDF (desativado)", AccentOrange);
+        _navJuntarPdfButton.Enabled = false;
         layout.Controls.Add(_navJuntarPdfButton, 0, 3);
 
         layout.Controls.Add(new Label
@@ -437,13 +437,12 @@ public sealed class MainForm : Form
         {
             Dock = DockStyle.Top,
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 2,
             AutoSize = true,
             BackColor = Color.Transparent,
             Margin = new Padding(0)
         };
         shortcuts.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        shortcuts.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         shortcuts.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         shortcuts.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -454,10 +453,6 @@ public sealed class MainForm : Form
         var openCleanupLogsFromSidebar = CreateSecondaryActionButton("Logs LimpaCache");
         openCleanupLogsFromSidebar.Click += (_, _) => OpenFolder(CleanupPaths.LogDirectory, _cleanupLog, "logs do LimpaCache");
         shortcuts.Controls.Add(openCleanupLogsFromSidebar, 0, 1);
-
-        var openPdfLogsFromSidebar = CreateSecondaryActionButton("Logs Juntar PDF");
-        openPdfLogsFromSidebar.Click += (_, _) => OpenFolder(_appPaths.LogsDirectory, _logger, "logs do Juntar PDF");
-        shortcuts.Controls.Add(openPdfLogsFromSidebar, 0, 2);
 
         layout.Controls.Add(shortcuts, 0, 5);
 
@@ -1478,6 +1473,11 @@ public sealed class MainForm : Form
 
     private void SwitchModule(ModuleView module)
     {
+        if (module == ModuleView.JuntarPdf)
+        {
+            module = ModuleView.VoltaGov;
+        }
+
         _currentModule = module;
         var targetPanel = module switch
         {
