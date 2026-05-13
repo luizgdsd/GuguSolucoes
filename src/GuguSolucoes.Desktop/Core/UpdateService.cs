@@ -124,7 +124,7 @@ public sealed class UpdateService : IDisposable
         var startInfo = new ProcessStartInfo
         {
             FileName = installerPath,
-            Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS",
+            Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /GUGU_RESTART=1",
             UseShellExecute = true,
             Verb = "runas"
         };

@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -19,6 +20,8 @@ namespace GuguSolucoes.Desktop;
 public sealed class MainForm : Form
 {
     private const string UiFontFamily = StyleManager.FontFamily;
+    private const uint FlashwAll = 3;
+    private const uint FlashwTimerNoForeground = 12;
 
     private enum ModuleView
     {
@@ -1591,6 +1594,7 @@ public sealed class MainForm : Form
             if (shouldOffer)
             {
                 _lastPromptedUpdateTag = result.LatestTag;
+                ShowUpdateReleaseAlert(result);
                 await OfferUpdateAsync(result);
             }
         }
@@ -1638,6 +1642,46 @@ public sealed class MainForm : Form
             _logger.Error($"Falha ao aplicar update: {ex}");
             MessageBox.Show(this, ex.Message, "Atualizações", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private void ShowUpdateReleaseAlert(UpdateCheckResult update)
+    {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => ShowUpdateReleaseAlert(update)));
+            return;
+        }
+
+        var versionText = update.LatestVersion is null ? update.LatestTag : $"v{update.LatestVersion}";
+        ShowFromTray();
+        BringToFront();
+        TopMost = true;
+        TopMost = false;
+        FlashTaskbar();
+        _notifyIcon.ShowBalloonTip(
+            7000,
+            "Atualização disponível",
+            $"A versão {versionText} está pronta para instalar.",
+            ToolTipIcon.Info);
+    }
+
+    private void FlashTaskbar()
+    {
+        if (!IsHandleCreated)
+        {
+            return;
+        }
+
+        var flashInfo = new FlashWindowInfo
+        {
+            cbSize = Convert.ToUInt32(Marshal.SizeOf<FlashWindowInfo>()),
+            hwnd = Handle,
+            dwFlags = FlashwAll | FlashwTimerNoForeground,
+            uCount = 8,
+            dwTimeout = 0
+        };
+
+        FlashWindowEx(ref flashInfo);
     }
 
     private void SetUpdateStatus(string text, bool isImportant)
@@ -1689,6 +1733,19 @@ public sealed class MainForm : Form
     {
         _allowClose = true;
         Close();
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool FlashWindowEx(ref FlashWindowInfo flashInfo);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FlashWindowInfo
+    {
+        public uint cbSize;
+        public IntPtr hwnd;
+        public uint dwFlags;
+        public uint uCount;
+        public uint dwTimeout;
     }
 
     private async Task RunRepairAsync()
