@@ -1,0 +1,27 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{2B75FCB2-EF5B-429F-932E-48A376E1B5BA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GuguSolucoes.Desktop", "src\GuguSolucoes.Desktop\GuguSolucoes.Desktop.csproj", "{6F6FED65-079D-49A8-A7E4-9595B7310F75}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6F6FED65-079D-49A8-A7E4-9595B7310F75}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F6FED65-079D-49A8-A7E4-9595B7310F75}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F6FED65-079D-49A8-A7E4-9595B7310F75}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F6FED65-079D-49A8-A7E4-9595B7310F75}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{6F6FED65-079D-49A8-A7E4-9595B7310F75} = {2B75FCB2-EF5B-429F-932E-48A376E1B5BA}
+	EndGlobalSection
+EndGlobal
