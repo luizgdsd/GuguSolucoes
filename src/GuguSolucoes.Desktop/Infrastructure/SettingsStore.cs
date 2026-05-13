@@ -35,7 +35,14 @@ public sealed class SettingsStore
         {
             var raw = File.ReadAllText(_paths.SettingsFilePath);
             var settings = JsonSerializer.Deserialize<AppSettings>(raw, JsonOptions);
-            return settings ?? AppSettings.CreateDefault();
+            settings ??= AppSettings.CreateDefault();
+            var normalized = NormalizeCurrentDefaults(settings);
+            if (normalized)
+            {
+                Save(settings);
+            }
+
+            return settings;
         }
         catch (Exception ex)
         {
@@ -48,6 +55,38 @@ public sealed class SettingsStore
     {
         var raw = JsonSerializer.Serialize(settings, JsonOptions);
         File.WriteAllText(_paths.SettingsFilePath, raw);
+    }
+
+    private static bool NormalizeCurrentDefaults(AppSettings settings)
+    {
+        var changed = false;
+
+        if (string.IsNullOrWhiteSpace(settings.GitHubRepo) ||
+            string.Equals(settings.GitHubRepo, "gugu-solucoes/GuguSolucoes", StringComparison.OrdinalIgnoreCase))
+        {
+            settings.GitHubRepo = "luizgdsd/GuguSolucoes";
+            changed = true;
+        }
+
+        if (!settings.EnableAutoUpdate)
+        {
+            settings.EnableAutoUpdate = true;
+            changed = true;
+        }
+
+        if (settings.UpdateCheckIntervalMinutes < 1)
+        {
+            settings.UpdateCheckIntervalMinutes = 10;
+            changed = true;
+        }
+
+        if (!settings.NotifyOnUpdate)
+        {
+            settings.NotifyOnUpdate = true;
+            changed = true;
+        }
+
+        return changed;
     }
 }
 
