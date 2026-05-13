@@ -46,6 +46,7 @@ public sealed class MainForm : Form
 
     private readonly AppPaths _appPaths;
     private readonly AppLogger _logger;
+    private readonly SettingsStore _settingsStore;
     private readonly StartupRegistration _startupRegistration;
     private readonly RepairService _repairService;
     private readonly UpdateService _updateService;
@@ -139,12 +140,13 @@ public sealed class MainForm : Form
 
         _appPaths = new AppPaths();
         _logger = new AppLogger(_appPaths);
+        _settingsStore = new SettingsStore(_appPaths, _logger);
         _startupRegistration = new StartupRegistration();
         _repairService = new RepairService(_logger);
         _updateService = new UpdateService(_appPaths, _logger);
         _updateCheckTimer = new System.Windows.Forms.Timer();
         _updateCheckTimer.Tick += async (_, _) => await CheckForUpdatesAsync(userInitiated: false);
-        _settings = new SettingsStore(_appPaths, _logger).Load();
+        _settings = _settingsStore.Load();
         _appIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? (Icon)SystemIcons.Application.Clone();
 
         _cleanupLog = new CleanupLogWriter();
@@ -291,9 +293,10 @@ public sealed class MainForm : Form
             ForeColor = TextPrimary,
             BackColor = Color.Transparent,
             Font = new Font(UiFontFamily, 10F, FontStyle.Bold),
-            Tag = "theme-toggle"
+            Tag = "theme-toggle",
+            Checked = _settings.UseLightTheme
         };
-        _themeToggle.CheckedChanged += (_, _) => ApplyTheme();
+        _themeToggle.CheckedChanged += (_, _) => OnThemeToggleChanged();
         _headerPanel.Controls.Add(_themeToggle);
 
         _versionLabel = new Label
@@ -1257,6 +1260,22 @@ public sealed class MainForm : Form
     private ThemePalette GetActiveTheme()
     {
         return StyleManager.ResolveTheme(_themeToggle is not null && _themeToggle.Checked);
+    }
+
+    private void OnThemeToggleChanged()
+    {
+        _settings.UseLightTheme = _themeToggle.Checked;
+
+        try
+        {
+            _settingsStore.Save(_settings);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Falha ao salvar preferência de tema: {ex.Message}");
+        }
+
+        ApplyTheme();
     }
 
     private void PositionHeaderToggle()

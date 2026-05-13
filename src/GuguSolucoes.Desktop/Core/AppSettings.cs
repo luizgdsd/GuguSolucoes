@@ -12,6 +12,7 @@ public sealed class AppSettings
     public bool NotifyOnUpdate { get; set; } = true;
     public bool LaunchAtStartup { get; set; } = true;
     public bool ClearBrowserCaches { get; set; } = true;
+    public bool UseLightTheme { get; set; } = false;
     public List<string> Domains { get; set; } = new()
     {
         "www.gov.br",
