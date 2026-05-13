@@ -22,12 +22,16 @@ public sealed class ConnectivityResult
 
 public sealed class UpdateCheckResult
 {
+    public bool Success { get; init; }
     public bool UpdateAvailable { get; init; }
     public Version? LatestVersion { get; init; }
     public string LatestTag { get; init; } = string.Empty;
     public string ReleaseName { get; init; } = string.Empty;
     public string InstallerUrl { get; init; } = string.Empty;
     public string InstallerName { get; init; } = string.Empty;
+    public string Sha256 { get; init; } = string.Empty;
+    public bool Mandatory { get; init; }
+    public string ReleaseNotes { get; init; } = string.Empty;
     public string Message { get; init; } = string.Empty;
 }
 

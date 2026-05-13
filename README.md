@@ -11,7 +11,7 @@ Aplicativo desktop unificado para rotinas de TI no escritorio de contabilidade, 
 - instancia unica da interface via `Mutex` em `Program.cs`
 - modo agente de limpeza no mesmo executavel via `--agent`
 - icone do app e instalador: `favicon.ico`
-- auto-update desabilitado por padrao, com desenho tecnico em `docs/autoupdate-design.md`
+- auto-update via GitHub Releases (`luizgdsd/GuguSolucoes`) com manifesto `update.json`
 
 ## Funcionalidades preservadas
 
@@ -48,3 +48,20 @@ Saidas:
 
 - `dist\publish\GuguSolucoes.exe`
 - `dist\GuguSolucoes-Setup-1.0.0.exe`
+
+## Release / update
+
+O app consulta a ultima GitHub Release do repositorio configurado em `settings.json`.
+Cada release deve conter:
+
+- `GuguSolucoes-Setup-x.y.z.exe`
+- `update.json`
+
+Para publicar uma nova versao:
+
+```powershell
+.\scripts\publish-update.ps1 -Version "1.0.23"
+```
+
+O push da tag `v1.0.23` aciona `.github/workflows/release.yml`, gera o instalador,
+calcula o SHA-256, cria o `update.json` e publica a release.

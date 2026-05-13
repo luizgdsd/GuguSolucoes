@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versao sem o prefixo v. Exemplo: 1.0.23"
+        required: true
+        type: string
+      mandatory:
+        description: "Marcar update como obrigatorio"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup --yes --no-progress
+
+      - name: Resolve version
+        id: version
+        shell: powershell
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $version = "${{ inputs.version }}"
+            $mandatory = "${{ inputs.mandatory }}"
+          } else {
+            $version = "${{ github.ref_name }}".TrimStart("v")
+            $mandatory = "false"
+          }
+
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Versao invalida: $version. Use X.Y.Z."
+          }
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=v$version" >> $env:GITHUB_OUTPUT
+          "mandatory=$mandatory" >> $env:GITHUB_OUTPUT
+
+      - name: Build installer
+        shell: powershell
+        run: .\build-installer.ps1 -AppVersion "${{ steps.version.outputs.version }}"
+
+      - name: Create update manifest
+        shell: powershell
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $tag = "${{ steps.version.outputs.tag }}"
+          $setup = "dist\GuguSolucoes-Setup-$version.exe"
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $setup).Hash
+          $repo = "${{ github.repository }}"
+          $manifest = [ordered]@{
+            version = $version
+            installerUrl = "https://github.com/$repo/releases/download/$tag/GuguSolucoes-Setup-$version.exe"
+            sha256 = $hash
+            mandatory = [System.Convert]::ToBoolean("${{ steps.version.outputs.mandatory }}")
+            releaseNotes = "Atualizacao $version do GuguSolucoes."
+            publishedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
+          }
+          $manifest | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -Path "dist\update.json"
+          Get-Content "dist\update.json"
+
+      - name: Publish GitHub Release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $tag = "${{ steps.version.outputs.tag }}"
+          $setup = "dist\GuguSolucoes-Setup-$version.exe"
+          $manifest = "dist\update.json"
+
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $setup $manifest --clobber
+            gh release edit $tag --title "GuguSolucoes $version" --notes "Atualizacao $version do GuguSolucoes." --latest
+          } else {
+            gh release create $tag $setup $manifest --title "GuguSolucoes $version" --notes "Atualizacao $version do GuguSolucoes." --latest
+          }

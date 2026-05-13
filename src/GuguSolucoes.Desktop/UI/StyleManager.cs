@@ -16,22 +16,22 @@ internal static class StyleManager
 
     public static readonly ThemePalette DarkTheme = new()
     {
-        Background = Color.FromArgb(11, 15, 20),
-        Surface = Color.FromArgb(18, 24, 33),
-        SurfaceSoft = Color.FromArgb(22, 29, 39),
-        HeaderBackground = Color.FromArgb(14, 20, 28),
-        Border = Color.FromArgb(45, 58, 78),
-        HeaderBorder = Color.FromArgb(56, 71, 93),
+        Background = Color.FromArgb(10, 14, 20),
+        Surface = Color.FromArgb(17, 23, 32),
+        SurfaceSoft = Color.FromArgb(23, 31, 42),
+        HeaderBackground = Color.FromArgb(15, 21, 30),
+        Border = Color.FromArgb(0, 0, 0, 0),
+        HeaderBorder = Color.FromArgb(0, 0, 0, 0),
         InputBackground = Color.FromArgb(12, 18, 27),
         InputFocusBackground = Color.FromArgb(17, 28, 40),
         TextPrimary = Color.FromArgb(245, 247, 250),
         TextSecondary = Color.FromArgb(168, 179, 194),
         TextMuted = Color.FromArgb(145, 159, 179),
         SecondaryButtonBackground = Color.FromArgb(26, 36, 48),
-        SecondaryButtonBorder = Color.FromArgb(58, 76, 99),
-        NavInactiveBackground = Color.FromArgb(14, 21, 31),
-        NavHoverBackground = Color.FromArgb(21, 31, 44),
-        NavActiveBackground = Color.FromArgb(16, 38, 52),
+        SecondaryButtonBorder = Color.FromArgb(0, 0, 0, 0),
+        NavInactiveBackground = Color.FromArgb(17, 23, 32),
+        NavHoverBackground = Color.FromArgb(28, 38, 52),
+        NavActiveBackground = Color.FromArgb(21, 47, 69),
         Accent = AccentCyan,
         Success = Color.FromArgb(74, 222, 128),
         Error = Color.FromArgb(248, 113, 113),
@@ -44,22 +44,22 @@ internal static class StyleManager
 
     public static readonly ThemePalette LightTheme = new()
     {
-        Background = Color.FromArgb(236, 242, 249),
+        Background = Color.FromArgb(239, 244, 250),
         Surface = Color.FromArgb(248, 251, 255),
         SurfaceSoft = Color.FromArgb(236, 242, 250),
-        HeaderBackground = Color.FromArgb(229, 236, 248),
-        Border = Color.FromArgb(166, 183, 208),
-        HeaderBorder = Color.FromArgb(152, 172, 198),
+        HeaderBackground = Color.FromArgb(248, 251, 255),
+        Border = Color.FromArgb(0, 0, 0, 0),
+        HeaderBorder = Color.FromArgb(0, 0, 0, 0),
         InputBackground = Color.FromArgb(255, 255, 255),
         InputFocusBackground = Color.FromArgb(241, 247, 255),
         TextPrimary = Color.FromArgb(20, 30, 46),
         TextSecondary = Color.FromArgb(64, 84, 112),
         TextMuted = Color.FromArgb(78, 100, 132),
         SecondaryButtonBackground = Color.FromArgb(226, 234, 246),
-        SecondaryButtonBorder = Color.FromArgb(161, 182, 211),
+        SecondaryButtonBorder = Color.FromArgb(0, 0, 0, 0),
         NavInactiveBackground = Color.FromArgb(250, 252, 255),
         NavHoverBackground = Color.FromArgb(235, 242, 251),
-        NavActiveBackground = Color.FromArgb(217, 229, 246),
+        NavActiveBackground = Color.FromArgb(220, 235, 255),
         Accent = Color.FromArgb(10, 138, 171),
         Success = Color.FromArgb(22, 128, 74),
         Error = Color.FromArgb(185, 28, 28),
@@ -119,8 +119,12 @@ internal static class StyleManager
             using var fillBrush = new SolidBrush(panel.BackColor);
             e.Graphics.FillPath(fillBrush, shapePath);
 
-            using var borderPen = new Pen(borderColorProvider(), 1.05F);
-            e.Graphics.DrawPath(borderPen, shapePath);
+            var borderColor = borderColorProvider();
+            if (borderColor.A > 0)
+            {
+                using var borderPen = new Pen(borderColor, 1F);
+                e.Graphics.DrawPath(borderPen, shapePath);
+            }
         };
 
         panel.Resize += (_, _) => ApplyRoundedRegion(panel, radius);
@@ -142,7 +146,7 @@ internal static class StyleManager
         button.BackColor = theme.SecondaryButtonBackground;
         button.ForeColor = theme.TextPrimary;
         button.FlatStyle = FlatStyle.Flat;
-        button.FlatAppearance.BorderSize = 1;
+        button.FlatAppearance.BorderSize = 0;
         button.FlatAppearance.BorderColor = theme.SecondaryButtonBorder;
         button.FlatAppearance.MouseOverBackColor = theme.InputFocusBackground;
         button.FlatAppearance.MouseDownBackColor = theme.InputBackground;
@@ -153,7 +157,7 @@ internal static class StyleManager
         button.BackColor = active ? theme.NavActiveBackground : theme.NavInactiveBackground;
         button.ForeColor = theme.TextPrimary;
         button.FlatStyle = FlatStyle.Flat;
-        button.FlatAppearance.BorderSize = 1;
+        button.FlatAppearance.BorderSize = 0;
         button.FlatAppearance.BorderColor = active ? accent : theme.Border;
         button.FlatAppearance.MouseOverBackColor = theme.NavHoverBackground;
         button.FlatAppearance.MouseDownBackColor = theme.InputFocusBackground;

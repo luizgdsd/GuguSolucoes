@@ -48,6 +48,8 @@ public sealed class MainForm : Form
     private readonly AppLogger _logger;
     private readonly StartupRegistration _startupRegistration;
     private readonly RepairService _repairService;
+    private readonly UpdateService _updateService;
+    private readonly System.Windows.Forms.Timer _updateCheckTimer;
     private readonly Icon _appIcon;
     private readonly bool _startInTray;
 
@@ -68,6 +70,8 @@ public sealed class MainForm : Form
     private Button _navLimpaCacheButton = null!;
     private Button _navJuntarPdfButton = null!;
     private CheckBox _themeToggle = null!;
+    private Label _versionLabel = null!;
+    private Label _updateStatusLabel = null!;
 
     private Panel _voltaGovView = null!;
     private Panel _limpaCacheView = null!;
@@ -122,8 +126,10 @@ public sealed class MainForm : Form
     private bool _isRepairRunning;
     private bool _isCleanupRunning;
     private bool _isPdfMergeRunning;
+    private bool _isUpdateCheckRunning;
     private bool _cleanupFeedbackIsError;
     private bool _allowClose;
+    private string _lastPromptedUpdateTag = string.Empty;
     private Color _panelBorderColor = AppBorder;
     private Color _headerBorderColor = Color.FromArgb(58, 74, 98);
 
@@ -135,6 +141,9 @@ public sealed class MainForm : Form
         _logger = new AppLogger(_appPaths);
         _startupRegistration = new StartupRegistration();
         _repairService = new RepairService(_logger);
+        _updateService = new UpdateService(_appPaths, _logger);
+        _updateCheckTimer = new System.Windows.Forms.Timer();
+        _updateCheckTimer.Tick += async (_, _) => await CheckForUpdatesAsync(userInitiated: false);
         _settings = new SettingsStore(_appPaths, _logger).Load();
         _appIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? (Icon)SystemIcons.Application.Clone();
 
@@ -166,6 +175,7 @@ public sealed class MainForm : Form
         _trayMenu.Items.Add("Abrir Painel", null, (_, _) => ShowFromTray());
         _trayMenu.Items.Add("Executar Reparo VoltaGov", null, async (_, _) => await RunRepairAsync());
         _trayMenu.Items.Add("Executar Limpeza de Temp", null, async (_, _) => await RunCleanupNowAsync());
+        _trayMenu.Items.Add("Verificar Atualizações", null, async (_, _) => await CheckForUpdatesAsync(userInitiated: true));
         _trayMenu.Items.Add(new ToolStripSeparator());
         _trayMenu.Items.Add("Sair", null, (_, _) => ExitApplication());
 
@@ -245,11 +255,11 @@ public sealed class MainForm : Form
             using var fillBrush = new SolidBrush(_headerPanel.BackColor);
             e.Graphics.FillPath(fillBrush, surfacePath);
 
-            using var borderPen = new Pen(_headerBorderColor, 1.1F);
-            e.Graphics.DrawPath(borderPen, surfacePath);
-
-            using var accentPen = new Pen(Color.FromArgb(56, GetActiveTheme().Accent), 1F);
-            e.Graphics.DrawLine(accentPen, 16, rect.Bottom - 1, Math.Max(16, rect.Right - 16), rect.Bottom - 1);
+            if (_headerBorderColor.A > 0)
+            {
+                using var borderPen = new Pen(_headerBorderColor, 1F);
+                e.Graphics.DrawPath(borderPen, surfacePath);
+            }
         };
 
         _headerPanel.Controls.Add(new Label
@@ -285,6 +295,30 @@ public sealed class MainForm : Form
         };
         _themeToggle.CheckedChanged += (_, _) => ApplyTheme();
         _headerPanel.Controls.Add(_themeToggle);
+
+        _versionLabel = new Label
+        {
+            Text = $"v{UpdateService.FormatVersion(_updateService.CurrentVersion)}",
+            AutoSize = true,
+            ForeColor = TextReadableMuted,
+            BackColor = Color.Transparent,
+            Font = new Font(UiFontFamily, 9F, FontStyle.Bold),
+            Tag = "muted"
+        };
+        _headerPanel.Controls.Add(_versionLabel);
+
+        _updateStatusLabel = new Label
+        {
+            Text = "Update: aguardando",
+            AutoSize = true,
+            ForeColor = TextReadableMuted,
+            BackColor = Color.Transparent,
+            Cursor = Cursors.Hand,
+            Font = new Font(UiFontFamily, 9F, FontStyle.Regular),
+            Tag = "muted"
+        };
+        _updateStatusLabel.Click += async (_, _) => await CheckForUpdatesAsync(userInitiated: true);
+        _headerPanel.Controls.Add(_updateStatusLabel);
 
         _headerPanel.Resize += (_, _) =>
         {
@@ -1232,8 +1266,22 @@ public sealed class MainForm : Form
             return;
         }
 
-        var x = Math.Max(16, _headerPanel.ClientSize.Width - _themeToggle.Width - 20);
-        _themeToggle.Location = new Point(x, 14);
+        var right = _headerPanel.ClientSize.Width - 20;
+        var themeX = Math.Max(16, right - _themeToggle.Width);
+        _themeToggle.Location = new Point(themeX, 14);
+
+        if (_updateStatusLabel is not null)
+        {
+            var statusX = Math.Max(16, right - _updateStatusLabel.Width);
+            _updateStatusLabel.Location = new Point(statusX, 50);
+        }
+
+        if (_versionLabel is not null)
+        {
+            var statusLeft = _updateStatusLabel?.Left ?? right;
+            var versionX = Math.Max(16, statusLeft - _versionLabel.Width - 18);
+            _versionLabel.Location = new Point(versionX, 50);
+        }
     }
 
     private void ApplyTheme()
@@ -1448,7 +1496,7 @@ public sealed class MainForm : Form
         StyleManager.ConfigureNavigationButton(button, theme, active, accent);
     }
 
-    private Task OnShownAsync()
+    private async Task OnShownAsync()
     {
         Log("Gugu Soluções iniciado como aplicativo residente.");
         _statusLabel.Text = "Aplicativo ativo. VoltaGov pronto para diagnóstico.";
@@ -1456,13 +1504,134 @@ public sealed class MainForm : Form
         LoadCleanupConfiguration();
         LoadCleanupState();
         UpdateCleanupIdentity();
+        StartUpdateMonitor();
 
         if (_startInTray)
         {
             BeginInvoke(new Action(() => HideToTray(showBalloon: false)));
         }
 
-        return Task.CompletedTask;
+        await CheckForUpdatesAsync(userInitiated: false);
+    }
+
+    private void StartUpdateMonitor()
+    {
+        if (!_settings.EnableAutoUpdate)
+        {
+            SetUpdateStatus("Update: desativado", isImportant: false);
+            return;
+        }
+
+        var minutes = Math.Clamp(_settings.UpdateCheckIntervalMinutes, 1, 1440);
+        _updateCheckTimer.Interval = (int)TimeSpan.FromMinutes(minutes).TotalMilliseconds;
+        _updateCheckTimer.Start();
+        SetUpdateStatus("Update: verificando...", isImportant: false);
+    }
+
+    private async Task CheckForUpdatesAsync(bool userInitiated)
+    {
+        if (_isUpdateCheckRunning)
+        {
+            return;
+        }
+
+        if (!_settings.EnableAutoUpdate)
+        {
+            SetUpdateStatus("Update: desativado", isImportant: false);
+            return;
+        }
+
+        _isUpdateCheckRunning = true;
+        SetUpdateStatus("Update: verificando...", isImportant: false);
+
+        try
+        {
+            var result = await _updateService.CheckForUpdateAsync(_settings, CancellationToken.None);
+            if (!result.Success)
+            {
+                SetUpdateStatus("Update: indisponível", isImportant: true);
+                _logger.Warn(result.Message);
+                return;
+            }
+
+            if (!result.UpdateAvailable)
+            {
+                SetUpdateStatus($"Atualizado v{UpdateService.FormatVersion(_updateService.CurrentVersion)}", isImportant: false);
+                return;
+            }
+
+            var versionText = result.LatestVersion is null ? result.LatestTag : $"v{result.LatestVersion}";
+            SetUpdateStatus($"Update {versionText} disponível", isImportant: true);
+            _logger.Info($"Update disponível: {result.LatestTag} ({result.InstallerName}).");
+
+            var shouldOffer = userInitiated ||
+                              result.Mandatory ||
+                              _settings.AutoApplyUpdates ||
+                              (_settings.NotifyOnUpdate && !string.Equals(_lastPromptedUpdateTag, result.LatestTag, StringComparison.OrdinalIgnoreCase));
+
+            if (shouldOffer)
+            {
+                _lastPromptedUpdateTag = result.LatestTag;
+                await OfferUpdateAsync(result);
+            }
+        }
+        catch (Exception ex)
+        {
+            SetUpdateStatus("Update: falha ao verificar", isImportant: true);
+            _logger.Warn($"Falha ao verificar update: {ex.Message}");
+
+            if (userInitiated)
+            {
+                MessageBox.Show(this, ex.Message, "Atualizações", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+        finally
+        {
+            _isUpdateCheckRunning = false;
+        }
+    }
+
+    private async Task OfferUpdateAsync(UpdateCheckResult update)
+    {
+        var autoApply = update.Mandatory || _settings.AutoApplyUpdates;
+        if (!autoApply)
+        {
+            var message = $"A versão {update.LatestVersion} está disponível.\n\nDeseja baixar e instalar agora?";
+            var choice = MessageBox.Show(this, message, "Atualização disponível", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+            if (choice != DialogResult.Yes)
+            {
+                return;
+            }
+        }
+
+        try
+        {
+            SetUpdateStatus("Update: baixando...", isImportant: true);
+            var result = await _updateService.DownloadAndStartInstallerAsync(update, _settings, CancellationToken.None);
+            _logger.Info(result.Message);
+            _notifyIcon.ShowBalloonTip(2500, "Gugu Soluções", "Instalador de atualização iniciado.", ToolTipIcon.Info);
+            _allowClose = true;
+            Close();
+        }
+        catch (Exception ex)
+        {
+            SetUpdateStatus("Update: falhou", isImportant: true);
+            _logger.Error($"Falha ao aplicar update: {ex}");
+            MessageBox.Show(this, ex.Message, "Atualizações", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void SetUpdateStatus(string text, bool isImportant)
+    {
+        if (_updateStatusLabel is null)
+        {
+            return;
+        }
+
+        var theme = GetActiveTheme();
+        _updateStatusLabel.Text = text;
+        _updateStatusLabel.ForeColor = isImportant ? theme.Accent : theme.TextMuted;
+        PositionHeaderToggle();
     }
 
     private void OnFormClosing(object? sender, FormClosingEventArgs e)
@@ -1803,6 +1972,8 @@ public sealed class MainForm : Form
             _notifyIcon.Dispose();
             _trayMenu.Dispose();
             _appIcon.Dispose();
+            _updateCheckTimer.Dispose();
+            _updateService.Dispose();
             _logger.LineLogged -= OnLogLine;
         }
 

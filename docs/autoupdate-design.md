@@ -4,6 +4,13 @@ Este documento define o desenho recomendado para o auto update do GuguSolucoes.
 O objetivo principal e instalar a versao nova removendo os binarios e dependencias
 da versao antiga, mantendo somente os arquivos necessarios para a versao atual.
 
+## Estado atual
+
+- O app consulta GitHub Releases periodicamente.
+- A versao aparece no cabecalho da janela principal.
+- O instalador limpa `{app}\*` antes de copiar a nova versao.
+- O workflow `.github/workflows/release.yml` cria releases com instalador e `update.json`.
+
 ## Fonte das versoes
 
 - Publicar cada versao como uma GitHub Release.
