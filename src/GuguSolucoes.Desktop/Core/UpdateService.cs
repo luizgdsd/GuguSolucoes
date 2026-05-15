@@ -59,8 +59,14 @@ public sealed class UpdateService : IDisposable
             };
         }
 
+        var manifest = await TryLoadLatestManifestAsync(repo, settings.GitHubToken, cancellationToken).ConfigureAwait(false);
+        if (manifest is not null)
+        {
+            return BuildResultFromManifest(manifest);
+        }
+
         var release = await GetLatestReleaseAsync(repo, settings.GitHubToken, cancellationToken).ConfigureAwait(false);
-        var manifest = await TryLoadManifestAsync(release, settings.GitHubToken, cancellationToken).ConfigureAwait(false);
+        manifest = await TryLoadManifestAsync(release, settings.GitHubToken, cancellationToken).ConfigureAwait(false);
 
         var latestVersionText = manifest?.Version ?? release.TagName;
         var latestVersion = ParseVersion(latestVersionText);
@@ -93,6 +99,51 @@ public sealed class UpdateService : IDisposable
             Sha256 = manifest?.Sha256 ?? string.Empty,
             Mandatory = manifest?.Mandatory ?? false,
             ReleaseNotes = manifest?.ReleaseNotes ?? release.Body ?? string.Empty,
+            Message = updateAvailable
+                ? $"Versao {latestVersion} disponivel."
+                : $"Versao atual ({FormatVersion(CurrentVersion)}) ja esta instalada."
+        };
+    }
+
+    private UpdateCheckResult BuildResultFromManifest(UpdateManifestDto manifest)
+    {
+        var latestVersion = ParseVersion(manifest.Version);
+        if (latestVersion is null)
+        {
+            return new UpdateCheckResult
+            {
+                Success = false,
+                LatestTag = manifest.Version,
+                Message = $"Nao foi possivel identificar a versao do update.json ({manifest.Version})."
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(manifest.InstallerUrl))
+        {
+            return new UpdateCheckResult
+            {
+                Success = false,
+                LatestVersion = latestVersion,
+                LatestTag = $"v{latestVersion}",
+                Message = "update.json sem URL do instalador."
+            };
+        }
+
+        var installerName = Path.GetFileName(new Uri(manifest.InstallerUrl).LocalPath);
+        var updateAvailable = latestVersion.CompareTo(NormalizeVersion(CurrentVersion)) > 0;
+
+        return new UpdateCheckResult
+        {
+            Success = true,
+            UpdateAvailable = updateAvailable,
+            LatestVersion = latestVersion,
+            LatestTag = $"v{latestVersion}",
+            ReleaseName = $"GuguSolucoes {latestVersion}",
+            InstallerUrl = manifest.InstallerUrl,
+            InstallerName = string.IsNullOrWhiteSpace(installerName) ? $"GuguSolucoes-Setup-{latestVersion}.exe" : installerName,
+            Sha256 = manifest.Sha256,
+            Mandatory = manifest.Mandatory,
+            ReleaseNotes = manifest.ReleaseNotes,
             Message = updateAvailable
                 ? $"Versao {latestVersion} disponivel."
                 : $"Versao atual ({FormatVersion(CurrentVersion)}) ja esta instalada."
@@ -158,6 +209,32 @@ public sealed class UpdateService : IDisposable
 
         return JsonSerializer.Deserialize<GitHubReleaseDto>(body, JsonOptions)
             ?? throw new InvalidOperationException("Resposta de release invalida.");
+    }
+
+    private async Task<UpdateManifestDto?> TryLoadLatestManifestAsync(
+        string repo,
+        string token,
+        CancellationToken cancellationToken)
+    {
+        var manifestUrl = $"https://github.com/{repo}/releases/latest/download/update.json";
+        try
+        {
+            using var request = CreateRequest(HttpMethod.Get, manifestUrl, token);
+            using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.Warn($"update.json latest indisponivel ({(int)response.StatusCode}). Usando fallback da API.");
+                return null;
+            }
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            return await JsonSerializer.DeserializeAsync<UpdateManifestDto>(stream, JsonOptions, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Nao foi possivel ler update.json latest. Usando fallback da API. Detalhe: {ex.Message}");
+            return null;
+        }
     }
 
     private async Task<UpdateManifestDto?> TryLoadManifestAsync(
